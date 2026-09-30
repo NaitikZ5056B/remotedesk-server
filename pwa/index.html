@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="RemoteDesk - Control your laptop from anywhere. Secure remote desktop with live screen sharing, file management, terminal, and system controls.">
+  <meta name="theme-color" content="#0a0a1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>RemoteDesk</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Icons+Round" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <style>
+    /* Inline fallback for Material Icons Round */
+    @font-face {
+      font-family: 'Material Icons Round';
+      font-style: normal;
+      font-weight: 400;
+      font-display: block;
+      src: url(https://fonts.gstatic.com/s/materialiconsround/v108/LDItaoyNOAY6Uewc665JcIzCKsKc_M9flwmP.woff2) format('woff2');
+    }
+    .material-icons-round {
+      font-family: 'Material Icons Round', sans-serif;
+      font-weight: normal;
+      font-style: normal;
+      font-size: 24px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+  </style>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ── Splash Screen ── -->
+  <div id="splash" class="splash">
+    <div class="splash-content">
+      <div class="splash-icon">
+        <div class="pulse-ring"></div>
+        <span class="material-icons-round">desktop_windows</span>
+      </div>
+      <h1>RemoteDesk</h1>
+      <p>Secure Remote Control</p>
+      <div class="splash-loader"><div class="loader-bar"></div></div>
+    </div>
+  </div>
+
+  <!-- ── Login Screen ── -->
+  <div id="login-screen" class="screen hidden">
+    <div class="login-container">
+      <div class="login-header">
+        <div class="login-icon">
+          <span class="material-icons-round">shield</span>
+        </div>
+        <h1>RemoteDesk</h1>
+        <p>Connect to your laptop securely</p>
+      </div>
+
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <label for="server-url">Server URL</label>
+          <div class="input-wrapper">
+            <span class="material-icons-round">dns</span>
+            <input type="url" id="server-url" placeholder="wss://your-server.onrender.com" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="agent-id">Agent ID</label>
+          <div class="input-wrapper">
+            <span class="material-icons-round">computer</span>
+            <input type="text" id="agent-id" placeholder="agent-xxxxxxxx" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper">
+            <span class="material-icons-round">lock</span>
+            <input type="password" id="password" placeholder="Enter password" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="totp-code">2FA Code</label>
+          <div class="input-wrapper">
+            <span class="material-icons-round">pin</span>
+            <input type="text" id="totp-code" placeholder="6-digit code" maxlength="6" pattern="[0-9]{6}" inputmode="numeric">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+          <span class="material-icons-round">login</span>
+          Connect
+        </button>
+
+        <button type="button" class="btn btn-outline btn-full" id="scan-qr-btn">
+          <span class="material-icons-round">qr_code_scanner</span>
+          Scan QR to Pair
+        </button>
+      </form>
+
+      <div id="login-error" class="error-msg hidden"></div>
+
+      <div class="login-footer">
+        <p>End-to-end encrypted • DTLS-SRTP • TLS</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main App ── -->
+  <div id="app" class="hidden">
+
+    <!-- Top Bar -->
+    <header id="topbar" class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn" id="menu-btn" aria-label="Menu">
+          <span class="material-icons-round">menu</span>
+        </button>
+        <div class="connection-badge" id="connection-badge">
+          <div class="status-dot"></div>
+          <span>Connected</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" id="fullscreen-btn" aria-label="Fullscreen">
+          <span class="material-icons-round">fullscreen</span>
+        </button>
+        <button class="icon-btn panic-btn" id="panic-btn" aria-label="Panic">
+          <span class="material-icons-round">emergency</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Screen View (Tab 1) ── -->
+    <section id="screen-view" class="tab-content active">
+      <div id="screen-container" class="screen-container">
+        <canvas id="screen-canvas" class="screen-canvas"></canvas>
+        <video id="screen-video" class="screen-video hidden" autoplay playsinline></video>
+        <div id="screen-overlay" class="screen-overlay">
+          <p>Tap to start screen share</p>
+          <button class="btn btn-primary" id="start-screen-btn">
+            <span class="material-icons-round">play_arrow</span>
+            Start
+          </button>
+        </div>
+      </div>
+
+      <!-- Floating Controls -->
+      <div id="screen-controls" class="screen-controls hidden">
+        <button class="fab" id="keyboard-toggle" aria-label="Keyboard">
+          <span class="material-icons-round">keyboard</span>
+        </button>
+        <div class="screen-control-bar">
+          <button class="sc-btn" id="sc-click" data-tooltip="Left Click">
+            <span class="material-icons-round">mouse</span>
+          </button>
+          <button class="sc-btn" id="sc-rightclick" data-tooltip="Right Click">
+            <span class="material-icons-round">ads_click</span>
+          </button>
+          <button class="sc-btn" id="sc-scroll-up" data-tooltip="Scroll Up">
+            <span class="material-icons-round">arrow_upward</span>
+          </button>
+          <button class="sc-btn" id="sc-scroll-down" data-tooltip="Scroll Down">
+            <span class="material-icons-round">arrow_downward</span>
+          </button>
+          <button class="sc-btn" id="sc-settings" data-tooltip="Settings">
+            <span class="material-icons-round">tune</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hidden keyboard input -->
+      <input type="text" id="hidden-keyboard" class="hidden-keyboard"
+             autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </section>
+
+    <!-- ── Dashboard (Tab 2) ── -->
+    <section id="dashboard-view" class="tab-content">
+      <div class="dashboard-scroll">
+        <div class="dash-header">
+          <h2>System Dashboard</h2>
+          <button class="icon-btn" id="refresh-dashboard">
+            <span class="material-icons-round">refresh</span>
+          </button>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="stat-grid" id="stat-grid">
+          <div class="stat-card" id="cpu-card">
+            <div class="stat-icon"><span class="material-icons-round">memory</span></div>
+            <div class="stat-info">
+              <span class="stat-label">CPU</span>
+              <span class="stat-value" id="cpu-value">--</span>
+            </div>
+            <svg class="stat-ring" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.915" class="ring-bg"/>
+              <circle cx="18" cy="18" r="15.915" class="ring-fill" id="cpu-ring" stroke-dasharray="0 100"/>
+            </svg>
+          </div>
+
+          <div class="stat-card" id="ram-card">
+            <div class="stat-icon"><span class="material-icons-round">developer_board</span></div>
+            <div class="stat-info">
+              <span class="stat-label">RAM</span>
+              <span class="stat-value" id="ram-value">--</span>
+            </div>
+            <svg class="stat-ring" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.915" class="ring-bg"/>
+              <circle cx="18" cy="18" r="15.915" class="ring-fill" id="ram-ring" stroke-dasharray="0 100"/>
+            </svg>
+          </div>
+
+          <div class="stat-card" id="disk-card">
+            <div class="stat-icon"><span class="material-icons-round">storage</span></div>
+            <div class="stat-info">
+              <span class="stat-label">Disk</span>
+              <span class="stat-value" id="disk-value">--</span>
+            </div>
+            <svg class="stat-ring" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.915" class="ring-bg"/>
+              <circle cx="18" cy="18" r="15.915" class="ring-fill" id="disk-ring" stroke-dasharray="0 100"/>
+            </svg>
+          </div>
+
+          <div class="stat-card" id="battery-card">
+            <div class="stat-icon"><span class="material-icons-round">battery_full</span></div>
+            <div class="stat-info">
+              <span class="stat-label">Battery</span>
+              <span class="stat-value" id="battery-value">--</span>
+            </div>
+            <svg class="stat-ring" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.915" class="ring-bg"/>
+              <circle cx="18" cy="18" r="15.915" class="ring-fill" id="battery-ring" stroke-dasharray="0 100"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="dash-card" id="system-info-card">
+          <h3><span class="material-icons-round">info</span> System Info</h3>
+          <div id="system-info" class="info-grid">
+            <p class="placeholder">Loading...</p>
+          </div>
+        </div>
+
+        <!-- Active Window -->
+        <div class="dash-card">
+          <h3><span class="material-icons-round">web_asset</span> Active Window</h3>
+          <p id="active-window" class="active-window-title">--</p>
+        </div>
+
+        <!-- Network -->
+        <div class="dash-card">
+          <h3><span class="material-icons-round">wifi</span> Network</h3>
+          <div id="network-info" class="info-grid">
+            <p class="placeholder">Loading...</p>
+          </div>
+        </div>
+
+        <!-- Processes -->
+        <div class="dash-card">
+          <h3>
+            <span class="material-icons-round">list_alt</span> Processes
+            <button class="icon-btn small" id="refresh-processes">
+              <span class="material-icons-round">refresh</span>
+            </button>
+          </h3>
+          <div id="process-list" class="process-list">
+            <p class="placeholder">Loading...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Controls (Tab 3) ── -->
+    <section id="controls-view" class="tab-content">
+      <div class="dashboard-scroll">
+        <div class="dash-header">
+          <h2>System Controls</h2>
+        </div>
+
+        <!-- Power Controls -->
+        <div class="control-grid">
+          <button class="control-card" id="ctrl-lock">
+            <span class="material-icons-round">lock</span>
+            <span>Lock</span>
+          </button>
+          <button class="control-card" id="ctrl-unlock">
+            <span class="material-icons-round">lock_open</span>
+            <span>Unlock</span>
+          </button>
+          <button class="control-card" id="ctrl-sleep">
+            <span class="material-icons-round">bedtime</span>
+            <span>Sleep</span>
+          </button>
+          <button class="control-card danger" id="ctrl-restart">
+            <span class="material-icons-round">restart_alt</span>
+            <span>Restart</span>
+          </button>
+          <button class="control-card danger" id="ctrl-shutdown">
+            <span class="material-icons-round">power_settings_new</span>
+            <span>Shutdown</span>
+          </button>
+          <button class="control-card" id="ctrl-cancel-shutdown">
+            <span class="material-icons-round">cancel</span>
+            <span>Cancel</span>
+          </button>
+        </div>
+
+        <!-- Media Controls -->
+        <div class="dash-card">
+          <h3><span class="material-icons-round">volume_up</span> Volume</h3>
+          <div class="slider-group">
+            <input type="range" id="volume-slider" min="0" max="100" value="50" class="slider">
+            <span class="slider-value" id="volume-value">50%</span>
+            <button class="icon-btn" id="mute-btn">
+              <span class="material-icons-round">volume_off</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="dash-card">
+          <h3><span class="material-icons-round">brightness_6</span> Brightness</h3>
+          <div class="slider-group">
+            <input type="range" id="brightness-slider" min="0" max="100" value="50" class="slider">
+            <span class="slider-value" id="brightness-value">50%</span>
+          </div>
+        </div>
+
+        <!-- Clipboard -->
+        <div class="dash-card">
+          <h3><span class="material-icons-round">content_paste</span> Clipboard Sync</h3>
+          <textarea id="clipboard-text" class="clipboard-area" placeholder="Clipboard content..."></textarea>
+          <div class="btn-row">
+            <button class="btn btn-sm" id="clipboard-get">
+              <span class="material-icons-round">download</span> Get
+            </button>
+            <button class="btn btn-sm" id="clipboard-set">
+              <span class="material-icons-round">upload</span> Set
+            </button>
+          </div>
+        </div>
+
+        <!-- Webcam -->
+        <div class="dash-card">
+          <h3><span class="material-icons-round">photo_camera</span> Webcam Snapshot</h3>
+          <div id="webcam-preview" class="webcam-preview">
+            <p class="placeholder">No snapshot</p>
+          </div>
+          <button class="btn btn-sm btn-full" id="webcam-snap">
+            <span class="material-icons-round">camera</span> Capture
+          </button>
+        </div>
+
+        <!-- Wake-on-LAN -->
+        <div class="dash-card">
+          <h3><span class="material-icons-round">power</span> Wake-on-LAN</h3>
+          <div class="form-group compact">
+            <input type="text" id="wol-mac" placeholder="AA:BB:CC:DD:EE:FF" class="input-compact">
+            <button class="btn btn-sm" id="wol-send">
+              <span class="material-icons-round">bolt</span> Wake
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Files (Tab 4) ── -->
+    <section id="files-view" class="tab-content">
+      <div class="dashboard-scroll">
+        <div class="file-toolbar">
+          <button class="icon-btn" id="file-back" aria-label="Back">
+            <span class="material-icons-round">arrow_back</span>
+          </button>
+          <div class="file-path" id="file-path">/</div>
+          <button class="icon-btn" id="file-home" aria-label="Home">
+            <span class="material-icons-round">home</span>
+          </button>
+          <button class="icon-btn" id="file-upload-btn" aria-label="Upload">
+            <span class="material-icons-round">upload_file</span>
+          </button>
+          <button class="icon-btn" id="file-mkdir-btn" aria-label="New Folder">
+            <span class="material-icons-round">create_new_folder</span>
+          </button>
+        </div>
+
+        <!-- Drives -->
+        <div id="file-drives" class="file-drives hidden"></div>
+
+        <!-- File List -->
+        <div id="file-list" class="file-list">
+          <p class="placeholder">Select a location to browse</p>
+        </div>
+
+        <!-- Hidden file input -->
+        <input type="file" id="file-upload-input" class="hidden" multiple>
+      </div>
+    </section>
+
+    <!-- ── Terminal (Tab 5) ── -->
+    <section id="terminal-view" class="tab-content">
+      <div class="terminal-wrapper">
+        <div class="terminal-toolbar">
+          <select id="terminal-sessions" class="terminal-select">
+            <option value="">No sessions</option>
+          </select>
+          <button class="icon-btn" id="terminal-new" aria-label="New Terminal">
+            <span class="material-icons-round">add</span>
+          </button>
+          <button class="icon-btn" id="terminal-close" aria-label="Close Terminal">
+            <span class="material-icons-round">close</span>
+          </button>
+          <button class="icon-btn" id="terminal-ctrl-c" aria-label="Ctrl+C">
+            <span class="material-icons-round">cancel</span>
+          </button>
+        </div>
+        <div id="terminal-output" class="terminal-output"></div>
+        <div class="terminal-input-bar">
+          <span class="terminal-prompt">$</span>
+          <input type="text" id="terminal-input" class="terminal-input"
+                 placeholder="Type command..." autocomplete="off"
+                 autocapitalize="off" autocorrect="off" spellcheck="false">
+          <button class="icon-btn" id="terminal-send" aria-label="Send">
+            <span class="material-icons-round">send</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" class="bottom-nav">
+      <button class="nav-item active" data-tab="screen-view">
+        <span class="material-icons-round">desktop_windows</span>
+        <span>Screen</span>
+      </button>
+      <button class="nav-item" data-tab="dashboard-view">
+        <span class="material-icons-round">dashboard</span>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" data-tab="controls-view">
+        <span class="material-icons-round">tune</span>
+        <span>Controls</span>
+      </button>
+      <button class="nav-item" data-tab="files-view">
+        <span class="material-icons-round">folder</span>
+        <span>Files</span>
+      </button>
+      <button class="nav-item" data-tab="terminal-view">
+        <span class="material-icons-round">terminal</span>
+        <span>Terminal</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ── Settings Drawer ── -->
+  <div id="settings-drawer" class="drawer hidden">
+    <div class="drawer-backdrop"></div>
+    <div class="drawer-content">
+      <div class="drawer-header">
+        <h3>Settings</h3>
+        <button class="icon-btn" id="close-settings">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="setting-group">
+          <h4>Screen Streaming</h4>
+          <div class="setting-row">
+            <label>Quality</label>
+            <input type="range" id="setting-quality" min="10" max="100" value="80" class="slider">
+            <span id="setting-quality-val">80%</span>
+          </div>
+          <div class="setting-row">
+            <label>FPS</label>
+            <input type="range" id="setting-fps" min="1" max="60" value="30" class="slider">
+            <span id="setting-fps-val">30</span>
+          </div>
+          <div class="setting-row">
+            <label>Monitor</label>
+            <select id="setting-monitor" class="select-sm">
+              <option value="1">Monitor 1</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <h4>Security</h4>
+          <button class="btn btn-sm btn-full" id="setting-sessions">
+            <span class="material-icons-round">devices</span> Active Sessions
+          </button>
+          <button class="btn btn-sm btn-full" id="setting-audit">
+            <span class="material-icons-round">history</span> Audit Log
+          </button>
+          <button class="btn btn-sm btn-full btn-danger" id="setting-disconnect">
+            <span class="material-icons-round">logout</span> Disconnect
+          </button>
+        </div>
+
+        <div class="setting-group">
+          <h4>Connection</h4>
+          <div id="connection-status" class="connection-details">
+            <p>Status: <span id="conn-status-text">--</span></p>
+            <p>Latency: <span id="conn-latency">--</span></p>
+            <p>Agent: <span id="conn-agent-id">--</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Confirmation Dialog ── -->
+  <div id="confirm-dialog" class="dialog hidden">
+    <div class="dialog-backdrop"></div>
+    <div class="dialog-box">
+      <div class="dialog-icon">
+        <span class="material-icons-round">warning</span>
+      </div>
+      <h3 id="confirm-title">Confirm Action</h3>
+      <p id="confirm-message">Are you sure?</p>
+      <div class="dialog-buttons">
+        <button class="btn btn-outline" id="confirm-cancel">Cancel</button>
+        <button class="btn btn-danger" id="confirm-ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast Notifications ── -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/app.js"></script>
+</body>
+</html>

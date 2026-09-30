@@ -1,0 +1,41 @@
+# RemoteDesk Agent Dependencies
+
+# WebRTC
+aiortc>=1.9.0
+
+# WebSocket client
+websockets>=12.0
+
+# Screen capture
+mss>=9.0.1
+
+# Input control
+pynput>=1.7.6
+
+# System monitoring
+psutil>=5.9.8
+
+# Image processing
+Pillow>=10.2.0
+numpy>=1.26.0
+
+# Security
+PyJWT>=2.8.0
+cryptography>=42.0.0
+pyotp>=2.9.0
+qrcode>=7.4.2
+bcrypt>=4.1.2
+
+# Environment
+python-dotenv>=1.0.1
+
+# HTTP/Async
+aiohttp>=3.9.3
+aiofiles>=23.2.1
+
+# Media
+opencv-python-headless>=4.9.0
+
+# Platform-specific (uncomment as needed)
+# pywin32>=306            # Windows service support
+# pyautogui>=0.9.54       # Fallback input control
